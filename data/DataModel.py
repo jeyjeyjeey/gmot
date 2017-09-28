@@ -35,3 +35,4 @@ class PostDetailGuild(PostDetail):
         self.total_score_raw = ''
         self.stage_mode = '9'
         self.media = 'X'
+        self.ring = ''

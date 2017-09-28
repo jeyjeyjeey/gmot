@@ -39,6 +39,7 @@ class GBPost(Base):
     stage_mode          = Column('stage_mode', String(1))
     post_datetime       = Column('post_datetime', String(30))
     duration            = Column('duration', String(10))
+    ring                = Column('ring', String(1))
     media               = Column('media', String(1))
     is_score_editted    = Column('is_score_editted', String(1))
     is_valid_data       = Column('is_valid_data', String(1))
@@ -46,7 +47,7 @@ class GBPost(Base):
     def __init__(self,
                 created_at, updated_at, id, post_date, meta_ids_name, author, lobi_name, user_id,
                 final_score, end_score, end_score_raw, total_score, total_score_raw, stage_mode,
-                post_datetime, duration, media, is_score_editted, is_valid_data):
+                post_datetime, duration, ring, media, is_score_editted, is_valid_data):
         self.created_at = created_at
         self.updated_at = updated_at
         self.id = id
@@ -63,6 +64,7 @@ class GBPost(Base):
         self.stage_mode = stage_mode
         self.post_datetime = post_datetime
         self.duration = duration
+        self.ring = ring
         self.media = media
         self.is_score_editted = is_score_editted
         self.is_valid_data = is_valid_data

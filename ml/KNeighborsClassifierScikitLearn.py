@@ -27,8 +27,8 @@ def knnTrain(detect_characters, train_data_dir, knn_identifier, k):
             abs_path = os.path.abspath(img_dir + file)
             img = cv2.imread(abs_path, cv2.IMREAD_GRAYSCALE)
             if img is None:
-                print('Failed to read image')
-                break
+                print('Failed to read images')
+                return False
 
             sample = img.reshape((1, -1))
             label = ord(character)
@@ -55,11 +55,10 @@ def knnClassify(images, knn_identifier):
     knn = KNeighborsClassifierScikitLearn.dict_knn.get(knn_identifier)
     if knn == None:
         print(knn_identifier + ' is not trained')
-        exit(1)
+        return None
 
     chr_str = ''
     for image in images:
-
         sample = image.reshape((1, image.shape[0] * image.shape[1]))
         sample = np.array(sample, np.float32)
 
@@ -67,3 +66,9 @@ def knnClassify(images, knn_identifier):
         chr_str += chr(int(result))
 
     return chr_str
+
+def knnTeardown(knn_identifier):
+    return False if KNeighborsClassifierScikitLearn.dict_knn.pop(knn_identifier, None) == None else True
+
+def knnTeardownAll():
+    return False if KNeighborsClassifierScikitLearn.dict_knn.clear() == {} else True

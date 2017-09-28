@@ -7,6 +7,7 @@ lobi.play
 import sys
 import os
 import time
+import pytz
 import datetime
 import iso8601
 import numpy as np
@@ -14,12 +15,14 @@ import numpy as np
 import lxml.html
 import requests
 import cv2
+
+import syslog
 from sqlalchemy.orm import sessionmaker
 
 sys.path.append("/Users/jeey/Dev/python/")
 from gmot.data.DataModel import PostList, PostDetailGuild
 import gmot.data.DbAccessor as DbAccessor
-from gmot.ml.KNeighborsClassifierScikitLearn import knnTrain
+from gmot.ml.KNeighborsClassifierScikitLearn import knnTrain, knnTeardownAll
 from gmot.gb.MvAnalyzer import extractCapEndScore, extractCapTotalScore, extractCapMode,\
                              ajustCapture, ocrEndScore, ocrTotalScore, discernMode,\
                              KNN_IDENTIFIER_END_SCORE, KNN_IDENTIFIER_TOTAL_SCORE, KNN_IDENTIFIER_MODE
@@ -30,6 +33,7 @@ META_IDS_DIC = { '火有利1':'95809', '水有利1':'94192', '風有利1':'95126
              '闇有利1':'67204', '光有利1':'101765', '混合闇1':'97548',\
              '水有利2':'240911', '風有利2':'237788',\
              '闇有利2':'240744', '光有利2':'240371'}
+DATETIME_RING_RECTANGLE = datetime.datetime(2017, 10, 23, tzinfo=pytz.timezone('Asia/Tokyo'))
 
 # パス
 MOVIE_DIR = '../movie'
@@ -50,8 +54,8 @@ def main(): # 直接実行可能
     args = sys.argv
     post_list = PostList()
     if len(args) == 1:
-        post_list.meta_ids_name = '闇有利1'
-        post_list.rows = 1
+        post_list.meta_ids_name = '混合火1'
+        post_list.rows = 100
     elif len(args) == 3:
         post_list.meta_ids_name = args[1]
         post_list.rows = int(args[2])
@@ -72,6 +76,10 @@ def main(): # 直接実行可能
     post_detail_list = getMvUrl(post_detail_list)
     post_detail_list = downloadMvFile(post_detail_list)
 
+    #処理対象がないならここで終了
+    if len(post_detail_list) == 0:
+        exit(0)
+
     # end_score[0-9]識別用のknnオブジェクトを生成
     zero_to_ten = range(0, 10)
     detect_chrs = np.append(zero_to_ten, '_')
@@ -83,6 +91,9 @@ def main(): # 直接実行可能
     knnTrain(detect_chrs, TRAIN_DATA_DIR_MODE, KNN_IDENTIFIER_MODE, 3)
 
     post_detail_list = analyzeMvFile(post_detail_list)
+
+    knnTeardownAll()
+
     post_detail_list = dataCleanse(post_detail_list)
     if DATA_INSERT: insertPosts(post_detail_list)
 
@@ -147,6 +158,10 @@ def getPostsDetail(post_list):
         post_detail.mv_name = post_detail.id + '.mp4'
         post_detail.mv_path = os.path.join(MOVIE_DIR, post_detail.mv_name)
         post_detail.media = 'L'
+        if post_detail.post_datetime < DATETIME_RING_RECTANGLE:
+            post_detail.ring = 'C' # circle
+        elif post_detail.post_datetime >= DATETIME_RING_RECTANGLE:
+            post_detail.ring = 'R' # Rectungle
 
         _post_detail_list.append(post_detail)
 
@@ -407,7 +422,8 @@ def insertPosts(post_detail_list):
             post.duration,              # duration                
             post.media,                 # media        
             '0',                        # is_final_score_editted
-            post.is_valid_data          # is_valid_data  
+            post.is_valid_data,         # is_valid_data
+            post.ring                   # ring
         ) 
         posts.append(gbPost)
 
@@ -415,16 +431,16 @@ def insertPosts(post_detail_list):
     session.flush()
     try:
         session.commit()
-    except IntegrityError as e:
+    except Exception as e:
         reason = str(e)
-        logger.warning(reason)
+        syslog.warning(reason)
 
         if "Duplicate entry" in reason:
-            logger.info('the inserting row already in table')
+            syslog.info('the inserting row already in table')
             Session.rollback()
 
         else:
-            logger.info(reason)
+            syslog.info(reason)
             Session.rollback()
             raise e
 

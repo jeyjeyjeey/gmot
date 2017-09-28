@@ -137,7 +137,7 @@ def ajustCapture(imgs):
     aspect = height / width
 
     # アスペクト比調整
-    if  aspect != aspect_gmot:
+    if aspect != aspect_gmot:
         #高さに対する適正な幅（補正幅）を求める
         coefficientWidth = height / (aspect_gmot * width) 
         correctionWidth = math.floor(width * coefficientWidth)
@@ -185,6 +185,7 @@ def ocrEndScore(imgs):
 
     # OCR KNN
     end_score_raw = knnClassify(digit_imgs, KNN_IDENTIFIER_END_SCORE)
+    if end_score_raw is None: return None
     end_score = int(end_score_raw.replace('_', '0'))
 
     # debug
@@ -229,9 +230,11 @@ def ocrTotalScore(imgs):
 
         # OCR KNN
         total_score_raw = knnClassify(digit_imgs, KNN_IDENTIFIER_TOTAL_SCORE)
-        total_score_raw_all.append(total_score_raw)
         if total_score_raw.count('_') <= 1:
             knn_total_results.append(total_score_raw)
+        elif total_score_raw_all is None:
+            return None
+        total_score_raw_all.append(total_score_raw)
 
     len_result = len(knn_total_results)
     if len(knn_total_results) != 0:
@@ -250,7 +253,7 @@ def discernMode(imgs):
         print('discernMode/画像ファイルがないよ')
         return False
 
-    knn_mode_results = []
+    knn_stage_mode_results = []
     break_images = []
     for i, img in enumerate(imgs):
         # 画像処理
@@ -260,10 +263,12 @@ def discernMode(imgs):
         break_images.append(img)
 
     # DISCERN KNN
-    knn_mode_results.append(knnClassify(break_images, KNN_IDENTIFIER_MODE))
+    stage_mode_raw = knnClassify(break_images, KNN_IDENTIFIER_MODE)
+    if stage_mode_raw is None: return None
+    knn_stage_mode_results.append(stage_mode_raw)
 
     # 一つでもブレイクと判別された場合、ブレイクと判定する
-    stage_mode = 'b' if 'b' in knn_mode_results else 'n'
+    stage_mode = 'b' if 'b' in knn_stage_mode_results else 'n'
 
     # debug
     # print('id:' + post_detail.id)
