@@ -2,15 +2,18 @@ import os
 import numpy as np
 import cv2
 
+
 class KNeighborsClassifierOpenCV:
     dict_knn = {}
+
 
 class Knn:
     def __init__(self, classifier, k):
         self.classifier = classifier
         self.k = k
 
-def knnTrain(detect_characters, train_data_dir, knn_identifier, k):
+
+def knn_train(detect_characters, train_data_dir, knn_identifier, k):
     samples = None
     labels = []
 
@@ -48,10 +51,10 @@ def knnTrain(detect_characters, train_data_dir, knn_identifier, k):
 
     return True
 
-def knnClassify(images, knn_identifier):
+def knn_classify(images, knn_identifier):
 
     knn = KNeighborsClassifierOpenCV.dict_knn.get(knn_identifier)
-    if knn == None:
+    if knn is None:
         print(knn_identifier + ' is not trained')
         exit(1)
 
@@ -66,4 +69,3 @@ def knnClassify(images, knn_identifier):
         chr_str += chr(int(results.ravel()))
 
     return chr_str
-

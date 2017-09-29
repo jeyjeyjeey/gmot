@@ -11,7 +11,7 @@ class Knn:
         self.classifier = classifier
         self.k = k
 
-def knnTrain(detect_characters, train_data_dir, knn_identifier, k):
+def knn_train(detect_characters, train_data_dir, knn_identifier, k):
     samples = None
     labels = []
 
@@ -50,10 +50,10 @@ def knnTrain(detect_characters, train_data_dir, knn_identifier, k):
 
     return True
 
-def knnClassify(images, knn_identifier):
+def knn_classify(images, knn_identifier):
 
     knn = KNeighborsClassifierScikitLearn.dict_knn.get(knn_identifier)
-    if knn == None:
+    if knn is None:
         print(knn_identifier + ' is not trained')
         return None
 
@@ -67,8 +67,8 @@ def knnClassify(images, knn_identifier):
 
     return chr_str
 
-def knnTeardown(knn_identifier):
-    return False if KNeighborsClassifierScikitLearn.dict_knn.pop(knn_identifier, None) == None else True
+def knn_teardown(knn_identifier):
+    return False if KNeighborsClassifierScikitLearn.dict_knn.pop(knn_identifier, None) is None else True
 
-def knnTeardownAll():
+def knn_teardown_all():
     return False if KNeighborsClassifierScikitLearn.dict_knn.clear() == {} else True

@@ -9,17 +9,18 @@ import math
 import numpy as np
 import collections
 
-from gmot.ml.KNeighborsClassifierScikitLearn import knnClassify
+from gmot.ml.KNeighborsClassifierScikitLearn import knn_classify
 
 KNN_IDENTIFIER_END_SCORE = 'end_score'
 KNN_IDENTIFIER_TOTAL_SCORE = 'total_score'
 KNN_IDENTIFIER_MODE = 'mode'
 
-def extractCapEndScore(mv):
+
+def extract_cap_end_score(mv):
 
     proc_imgs = []
     # 有効な最終フレームを取得する
-    valid_last_frame = getValidLastFrame(mv)
+    valid_last_frame = get_valid_last_frame(mv)
 
     if valid_last_frame:
         mv.set(cv2.CAP_PROP_POS_FRAMES, valid_last_frame)
@@ -30,7 +31,8 @@ def extractCapEndScore(mv):
 
     return proc_imgs
 
-def extractCapTotalScore(mv):
+
+def extract_cap_total_score(mv):
 
     # 動画情報を取得
     fps = mv.get(cv2.CAP_PROP_FPS)
@@ -38,7 +40,7 @@ def extractCapTotalScore(mv):
 
     proc_imgs = []
     # 有効な最終フレームを取得する
-    valid_last_frame = getValidLastFrame(mv)
+    valid_last_frame = get_valid_last_frame(mv)
     if valid_last_frame:
         pos_frame = valid_last_frame
     else:
@@ -55,17 +57,18 @@ def extractCapTotalScore(mv):
         mv.set(cv2.CAP_PROP_POS_FRAMES, pos_frame)
 
         ret, frame = mv.read()
-        if ret == True:
+        if ret is True:
             proc_imgs.append(frame)
-        elif ret == False:
+        elif ret is False:
             break
 
         pos_frame -= fps / 2
         i += 1
 
-    return proc_imgs if ret == True else None
+    return proc_imgs if ret is True else None
 
-def extractCapMode(mv):
+
+def extract_cap_mode(mv):
 
     # 動画情報を取得
     fps = mv.get(cv2.CAP_PROP_FPS)
@@ -94,7 +97,7 @@ def extractCapMode(mv):
 
     return proc_imgs if ret == True else None
 
-def getValidLastFrame(mv):
+def get_valid_last_frame(mv):
 
     # 動画情報を取得
     fps = mv.get(cv2.CAP_PROP_FPS)
@@ -117,9 +120,10 @@ def getValidLastFrame(mv):
             else:
                 break
 
-    return pos_frame if ret == True else False
+    return pos_frame if ret is True else False
 
-def ajustCapture(imgs):
+
+def ajust_capture(imgs):
 
     if len(imgs) == 0:
         print('ajustCapture/画像ファイルがないよ')
@@ -138,14 +142,14 @@ def ajustCapture(imgs):
 
     # アスペクト比調整
     if aspect != aspect_gmot:
-        #高さに対する適正な幅（補正幅）を求める
-        coefficientWidth = height / (aspect_gmot * width) 
-        correctionWidth = math.floor(width * coefficientWidth)
+        # 高さに対する適正な幅（補正幅）を求める
+        coefficient_width = height / (aspect_gmot * width)
+        correction_width = math.floor(width * coefficient_width)
 
-        #トリミングする位置x1,x2を求める
-        halfWidth = math.floor(width / 2) #x軸中央位置
-        x1 = int(halfWidth - (correctionWidth / 2))
-        x2 = int(halfWidth + (correctionWidth / 2))
+        # トリミングする位置x1,x2を求める
+        half_width = math.floor(width / 2)  # x軸中央位置
+        x1 = int(half_width - (correction_width / 2))
+        x2 = int(half_width + (correction_width / 2))
 
         # 2点を通る矩形部分を切り抜き
         # img[y: y + h, x: x + w]
@@ -159,7 +163,8 @@ def ajustCapture(imgs):
         
     return imgs
 
-def ocrEndScore(imgs):
+
+def ocr_end_score(imgs):
 
     if len(imgs) > 1:
         print('ocrEndScore/画像ファイルは1枚のみの想定:%s' % str(len(imgs)))
@@ -171,8 +176,8 @@ def ocrEndScore(imgs):
 
     # 画像処理
     img = img[71:91, 35:135]        # 文字領域抽出　矩形[y: y + h, x: x + w]
-    img = convGrayImg(img)          # グレースケール変換
-    img = adptThreshImg(img, 25)    # 適応的二値変換
+    img = conv_gray_img(img)  # グレースケール変換
+    img = adpt_thresh_img(img, 25)  # 適応的二値変換
     # 各数値領域抽出 x:15+15+15+3(カンマ)+15+15+15
     digit_imgs = [
         img[0:20, 8:22],
@@ -184,8 +189,9 @@ def ocrEndScore(imgs):
     ]
 
     # OCR KNN
-    end_score_raw = knnClassify(digit_imgs, KNN_IDENTIFIER_END_SCORE)
-    if end_score_raw is None: return None
+    end_score_raw = knn_classify(digit_imgs, KNN_IDENTIFIER_END_SCORE)
+    if end_score_raw is None:
+        return None
     end_score = int(end_score_raw.replace('_', '0'))
 
     # debug
@@ -197,7 +203,8 @@ def ocrEndScore(imgs):
 
     return end_score_raw, end_score
 
-def ocrTotalScore(imgs):
+
+def ocr_total_score(imgs):
 
     if len(imgs) == 0:
         print('ocrTotalScore/画像ファイルがないよ')
@@ -208,8 +215,8 @@ def ocrTotalScore(imgs):
     for i, img in enumerate(imgs):
         # 画像処理
         img = img[415:445, 163:281]     # 文字領域抽出　矩形[y: y + h, x: x + w]
-        img = convGrayImg(img)          # グレースケール変換
-        img = adptThreshImg(img, 25)    # 適応的二値変換
+        img = conv_gray_img(img)        # グレースケール変換
+        img = adpt_thresh_img(img, 25)  # 適応的二値変換
         # 各数値領域抽出 x:19+19+19+4(カンマ)+19+19+19
         digit_imgs = [
             img[0:30, 0:19],
@@ -229,14 +236,13 @@ def ocrTotalScore(imgs):
         #                 digit_img)
 
         # OCR KNN
-        total_score_raw = knnClassify(digit_imgs, KNN_IDENTIFIER_TOTAL_SCORE)
-        if total_score_raw.count('_') <= 1:
-            knn_total_results.append(total_score_raw)
-        elif total_score_raw_all is None:
+        total_score_raw = knn_classify(digit_imgs, KNN_IDENTIFIER_TOTAL_SCORE)
+        if total_score_raw is None:
             return None
+        elif total_score_raw.count('_') <= 1:
+            knn_total_results.append(total_score_raw)
         total_score_raw_all.append(total_score_raw)
 
-    len_result = len(knn_total_results)
     if len(knn_total_results) != 0:
         count_dict = collections.Counter(knn_total_results)
         total_score = int(count_dict.most_common(1)[0][0].replace('_', '0'))
@@ -247,7 +253,8 @@ def ocrTotalScore(imgs):
 
     return total_score, collections.Counter(total_score_raw_all), total_score_count
 
-def discernMode(imgs):
+
+def discern_mode(imgs):
         
     if len(imgs) == 0:
         print('discernMode/画像ファイルがないよ')
@@ -258,13 +265,14 @@ def discernMode(imgs):
     for i, img in enumerate(imgs):
         # 画像処理
         img = img[195:250, 40:280]      # 文字領域抽出　矩形[y: y + h, x: x + w]
-        img = convGrayImg(img)          # グレースケール変換
-        img = adptThreshImg(img, 25)    # 適応的二値変換
+        img = conv_gray_img(img)        # グレースケール変換
+        img = adpt_thresh_img(img, 25)  # 適応的二値変換
         break_images.append(img)
 
     # DISCERN KNN
-    stage_mode_raw = knnClassify(break_images, KNN_IDENTIFIER_MODE)
-    if stage_mode_raw is None: return None
+    stage_mode_raw = knn_classify(break_images, KNN_IDENTIFIER_MODE)
+    if stage_mode_raw is None:
+        return None
     knn_stage_mode_results.append(stage_mode_raw)
 
     # 一つでもブレイクと判別された場合、ブレイクと判定する
@@ -280,7 +288,8 @@ def discernMode(imgs):
 
     return stage_mode 
 
-def convGrayImg(img):
+
+def conv_gray_img(img):
     # グレースケール変換
     img = cv2.cvtColor(
         img,
@@ -289,25 +298,26 @@ def convGrayImg(img):
 
     return img
 
-def adptThreshImg(img, threshSubstractConst):
+
+def adpt_thresh_img(img, thresh_substract_const=25):
     # 適応的二値変換
     # ADAPTIVE_THRESH_MEAN_C 近傍領域の中央値をしきい値
     # ADAPTIVE_THRESH_GAUSSIAN_C 近傍領域の重み付け平均値をしきい値
     max_pixel = 255
-    block_size = 11               
-    thresh_substract_const = 25    
+    block_size = 11
     img = cv2.adaptiveThreshold(
         img,
         max_pixel,
         cv2.ADAPTIVE_THRESH_MEAN_C,
         cv2.THRESH_BINARY,
-        block_size,                  #しきい値計算に使用する近傍領域のサイズ
-        thresh_substract_const        #計算されたしきい値から引く定数
+        block_size,                   # しきい値計算に使用する近傍領域のサイズ
+        thresh_substract_const        # 計算されたしきい値から引く定数
     )
 
     return img
 
-def sharpenImg(img):
+
+def sharpen_img(img):
     k = 1.0
     op = np.array([
                     [-k, -k, -k],
