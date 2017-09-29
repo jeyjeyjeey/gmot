@@ -39,7 +39,7 @@ def knn_train(detect_characters, train_data_dir, knn_identifier, k):
             labels.append(label)
 
     labels = np.array(labels, np.float32)
-    # scikit-learnのラベルはone-hotではなくただの配列で良いみたい
+    # scikit-learnのラベルは行列ではなくただの配列で良いみたい
     # labels = labels.reshape((labels.size, 1)).astype(np.float32)
 
     knn = KNeighborsClassifier(n_neighbors = k)
