@@ -18,7 +18,6 @@ import requests
 import cv2
 from sqlalchemy.orm import sessionmaker
 
-# sys.path.append("/Users/jeey/Dev/python/")
 from gmot.data.DataModel import PostList, PostDetailGuild
 import gmot.data.DbAccessor as DbAccessor
 from gmot.ml.KNeighborsClassifierScikitLearn import knn_train, knn_teardown_all
