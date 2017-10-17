@@ -1,15 +1,21 @@
 import os
+import logging
 import numpy as np
 import cv2
 from sklearn.neighbors import KNeighborsClassifier
 
+logger = logging.getLogger(__name__)
+
+
 class KNeighborsClassifierScikitLearn:
     dict_knn = {}
+
 
 class Knn:
     def __init__(self, classifier, k):
         self.classifier = classifier
         self.k = k
+
 
 def knn_train(detect_characters, train_data_dir, knn_identifier, k):
     samples = None
@@ -27,7 +33,7 @@ def knn_train(detect_characters, train_data_dir, knn_identifier, k):
             abs_path = os.path.abspath(img_dir + file)
             img = cv2.imread(abs_path, cv2.IMREAD_GRAYSCALE)
             if img is None:
-                print('Failed to read images')
+                logger.error('Failed to read images')
                 return False
 
             sample = img.reshape((1, -1))
@@ -42,7 +48,7 @@ def knn_train(detect_characters, train_data_dir, knn_identifier, k):
     # scikit-learnのラベルは行列ではなくただの配列で良いみたい
     # labels = labels.reshape((labels.size, 1)).astype(np.float32)
 
-    knn = KNeighborsClassifier(n_neighbors = k)
+    knn = KNeighborsClassifier(n_neighbors=k)
     knn.fit(samples, labels)
 
     knn = Knn(knn, k)
@@ -50,11 +56,12 @@ def knn_train(detect_characters, train_data_dir, knn_identifier, k):
 
     return True
 
+
 def knn_classify(images, knn_identifier):
 
     knn = KNeighborsClassifierScikitLearn.dict_knn.get(knn_identifier)
     if knn is None:
-        print(knn_identifier + ' is not trained')
+        logger.error(knn_identifier + ' is not trained')
         return None
 
     chr_str = ''
@@ -67,8 +74,10 @@ def knn_classify(images, knn_identifier):
 
     return chr_str
 
+
 def knn_teardown(knn_identifier):
     return False if KNeighborsClassifierScikitLearn.dict_knn.pop(knn_identifier, None) is None else True
+
 
 def knn_teardown_all():
     return False if KNeighborsClassifierScikitLearn.dict_knn.clear() == {} else True

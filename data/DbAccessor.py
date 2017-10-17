@@ -20,6 +20,7 @@ echo = config.getboolean('dbsettings', 'echo')
 # Base初期化
 Base = declarative_base()
 
+
 class GBPost(Base):
     __tablename__ = 'gb_posts'
 
@@ -43,11 +44,13 @@ class GBPost(Base):
     media               = Column('media', String(1))
     is_score_editted    = Column('is_score_editted', String(1))
     is_valid_data       = Column('is_valid_data', String(1))
+    stage_mode_re       = Column('stage_mode_re', String(1))
 
     def __init__(self,
-                created_at, updated_at, id, post_date, meta_ids_name, author, lobi_name, user_id,
-                final_score, end_score, end_score_raw, total_score, total_score_raw, stage_mode,
-                post_datetime, duration, ring, media, is_score_editted, is_valid_data):
+                 created_at, updated_at, id, post_date, meta_ids_name, author, lobi_name, user_id,
+                 final_score, end_score, end_score_raw, end_score_knn, end_score_knn_raw,
+                 total_score, total_score_raw, stage_mode,
+                 post_datetime, duration, ring, media, is_score_editted, is_valid_data, stage_mode_re):
         self.created_at = created_at
         self.updated_at = updated_at
         self.id = id
@@ -68,8 +71,11 @@ class GBPost(Base):
         self.media = media
         self.is_score_editted = is_score_editted
         self.is_valid_data = is_valid_data
+        self.stage_mode_re = stage_mode_re
+
 
 # engine作成
 # create_engine("mysql://[user]:[passwd]@[host]/[dbname]", encoding="utf-8", echo=[True/False])
-engine = create_engine('mysql://%s:%s@%s/%s' % (user, passwd, host, dbname), echo=echo)
-Base.metadata.create_all(engine)
+engine = create_engine('mysql+pymysql://%s:%s@%s/%s?charset=%s' % (user, passwd, host, dbname, 'utf8'),
+                       encoding="utf-8", echo=echo)
+# Base.metadata.create_all(engine)

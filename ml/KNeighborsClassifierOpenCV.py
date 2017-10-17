@@ -1,6 +1,9 @@
 import os
+import logging
 import numpy as np
 import cv2
+
+logger = logging.getLogger(__name__)
 
 
 class KNeighborsClassifierOpenCV:
@@ -29,7 +32,7 @@ def knn_train(detect_characters, train_data_dir, knn_identifier, k):
             abs_path = os.path.abspath(img_dir + file)
             img = cv2.imread(abs_path, cv2.IMREAD_GRAYSCALE)
             if img is None:
-                print('Failed to read image')
+                logger.error('Failed to read image')
                 break
 
             sample = img.reshape((1, -1))
@@ -51,11 +54,12 @@ def knn_train(detect_characters, train_data_dir, knn_identifier, k):
 
     return True
 
+
 def knn_classify(images, knn_identifier):
 
     knn = KNeighborsClassifierOpenCV.dict_knn.get(knn_identifier)
     if knn is None:
-        print(knn_identifier + ' is not trained')
+        logger.error(knn_identifier + ' is not trained')
         exit(1)
 
     chr_str = ''
@@ -64,7 +68,6 @@ def knn_classify(images, knn_identifier):
         sample = image.reshape((1, image.shape[0] * image.shape[1]))
         sample = np.array(sample, np.float32)
 
-        print(knn)
         retVal, results, neighResp, dists = knn.classifier.findNearest(sample, knn.k)
         chr_str += chr(int(results.ravel()))
 

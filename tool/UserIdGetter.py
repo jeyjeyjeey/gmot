@@ -17,33 +17,35 @@ import cv2
 import syslog
 from sqlalchemy.orm import sessionmaker
 
-from gmot.data.DataModel import PostList, PostDetail
-import gmot.data.GmotDbAccessor as DbAccessor
+import gmot.data.DbAccessor as DbAccessor
+
 
 def main():
-    gb_posts_dict_list = getTargetData()
-    gb_posts_dict_list = getUserIdList(gb_posts_dict_list)
-    updateRecordWithUserId(gb_posts_dict_list)
+    gb_posts_dict_list = get_target_data()
+    gb_posts_dict_list = get_user_id_list(gb_posts_dict_list)
+    update_record_with_user_id(gb_posts_dict_list)
 
-def getTargetData():
+
+def get_target_data():
     # 既存データ取得
     Session = sessionmaker(bind=DbAccessor.engine)
     session = Session()
-    gb_posts_result = ( session.query(DbAccessor.GBPost.id, DbAccessor.GBPost.user_id)
-                        .limit(7000)
-                        # .all()
-                        )
+    gb_posts_result = (session.query(DbAccessor.GBPost.id, DbAccessor.GBPost.user_id)
+                       .limit(7000)
+                       # .all()
+                       )
     session.flush()
     session.commit()
 
     gb_posts_dict_list = []
     for gb_post in gb_posts_result:
         gb_post_dict = gb_post._asdict()
-        if gb_post_dict.get('user_id') == None:
+        if gb_post_dict.get('user_id') is None:
             gb_posts_dict_list.append(gb_post_dict)
     return gb_posts_dict_list
 
-def getUserIdList(gb_posts_dict_list):
+
+def get_user_id_list(gb_posts_dict_list):
     # リクエストURL: https://play.lobi.co/video/(id)
     
     print('getUserIdList/対象件数：' + str(len(gb_posts_dict_list)))
@@ -74,12 +76,12 @@ def getUserIdList(gb_posts_dict_list):
 
         print('getUserIdList/処理完了：' + str(i))
 
-    return gb_posts_dict_list
-
     print('getUserIdList/全県処理完了/処理対象外件数：' + str(remove_count))
 
+    return gb_posts_dict_list
 
-def updateRecordWithUserId(gbPosts_dictList):
+
+def update_record_with_user_id(gb_posts_dict_list):
 
     # 既存データ取得
     Session = sessionmaker(bind=DbAccessor.engine)
@@ -90,7 +92,7 @@ def updateRecordWithUserId(gbPosts_dictList):
     #     'id': 1,
     #     'userId': 'hoge@hoge.com'
     # }, ...]
-    gb_post_mappings = gbPosts_dictList
+    gb_post_mappings = gb_posts_dict_list
 
     session.bulk_update_mappings(DbAccessor.GBPost, gb_post_mappings)
     session.flush()
@@ -99,16 +101,7 @@ def updateRecordWithUserId(gbPosts_dictList):
         session.commit()
     except Exception as e:
         reason = str(e)
-        syslog.warning(reason)
-
-        if "Duplicate entry" in reason:
-            syslog.info('the inserting row already in table')
-            Session.rollback()
-
-        else:
-            syslog.info(reason)
-            Session.rollback()
-            raise e
+        syslog.syslog(reason)
 
     return None
 
