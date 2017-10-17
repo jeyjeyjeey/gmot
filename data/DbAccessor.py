@@ -1,6 +1,6 @@
 # coding: utf-8
 """
-ごまおつスキーマモデル
+gmot schema model
 """
 import configparser
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DECIMAL, DATETIME, create_engine
@@ -8,7 +8,7 @@ from sqlalchemy.orm import session, sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
-# config読込
+# config read
 config = configparser.ConfigParser()
 config.read('config.ini')
 user = config.get('dbsettings', 'user')
@@ -17,7 +17,7 @@ host = config.get('dbsettings', 'host')
 dbname = config.get('dbsettings', 'dbname')
 echo = config.getboolean('dbsettings', 'echo')
 
-# Base初期化
+# Base init
 Base = declarative_base()
 
 
@@ -74,7 +74,6 @@ class GBPost(Base):
         self.stage_mode_re = stage_mode_re
 
 
-# engine作成
 # create_engine("mysql://[user]:[passwd]@[host]/[dbname]", encoding="utf-8", echo=[True/False])
 engine = create_engine('mysql+pymysql://%s:%s@%s/%s?charset=%s' % (user, passwd, host, dbname, 'utf8'),
                        encoding="utf-8", echo=echo)

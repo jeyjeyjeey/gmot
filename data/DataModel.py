@@ -1,6 +1,6 @@
 # coding: utf-8
 """
-ごまおつデータモデル
+gmot data model
 """
 
 
