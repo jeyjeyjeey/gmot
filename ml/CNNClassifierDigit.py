@@ -7,7 +7,7 @@ import functools
 import numpy as np
 import tensorflow as tf
 
-from gmot.ml.CNNClassifierImagesBase import CNNClassifierImagesBase
+from gmot.ml.CNNClassifierTfBase import CNNClassifierTfBase
 
 logger = logging.getLogger(__name__)
 
@@ -19,28 +19,30 @@ def main():
     with tf.Graph().as_default():
 
             # train
-            cnn.set_train_data_dir('../traindata/total_score_cnn')
-            cnn.set_ckpt_dir('../ckpt/total_score')
-            cnn.prepare()
+            cnn.train_data_dir = '../traindata/total_score_cnn'
+            cnn.ckpt_dir = '../ckpt/total_score'
+            cnn.prepare_sess_run()
 
             # graph
             summary_writer = tf.summary.FileWriter('../tensorboard/total_score/%s_%s/'
                                                    % (cnn._learning_rate, cnn._train_keep_prob),
-                                                   graph=cnn.get_sess().graph)
+                                                   graph=cnn.sess.graph)
             summary_op = tf.summary.merge_all()
             cnn.set_summary(summary_writer, summary_op)
 
             cnn.run_train()
 
             # test
-            cnn.set_train_data_dir('../traindata/total_score_knn')
-            test_data_itr = cnn.read_iter_data_img(range(0, 10),
-                                                   functools.partial(CNNClassifierImagesBase.sample_image,
-                                                                     resize_x=28, resize_y=28, normalization=True),
-                                                   shuffle=True,
+            cnn.train_data_dir = '../traindata/total_score_knn'
+            test_data_itr = cnn.read_iter_data_img(list(range(0, 10)),
+                                                   sampling_func=functools.partial(
+                                                       CNNClassifierTfBase.sample_image,
+                                                       resized_shape=(28, 28),
+                                                       normalization=True, flattening=True),
+                                                   shuffle_flg=True,
                                                    batch_size=100)
             test_data = next(test_data_itr)
-            accuracy_str = cnn.get_models('accuracy').eval(session=cnn.get_sess(), feed_dict={
+            accuracy_str = cnn.get_models('accuracy').eval(session=cnn.sess, feed_dict={
                 cnn.get_placeholders('x'): test_data[0],
                 cnn.get_placeholders('y_'): test_data[1],
                 cnn.get_placeholders('keep_prob'): 1.0})
@@ -49,7 +51,7 @@ def main():
             cnn.close_sess()
 
 
-class CNNClassifierDigit(CNNClassifierImagesBase):
+class CNNClassifierDigit(CNNClassifierTfBase):
     _placeholders = {}
     _models = {}
     _is_model_defined = False
@@ -75,13 +77,13 @@ class CNNClassifierDigit(CNNClassifierImagesBase):
         self._train_keep_prob = _train_keep_prob
         self._learning_rate = _learning_rate
 
-    def prepare(self):
+    def prepare_sess_run(self):
 
-        if self.get_sess() is not None:
+        if self.sess is not None:
             logger.warning('already prepared')
 
         # session start
-        self._set_sess(tf.Session())
+        self.sess = tf.Session()
 
         if not CNNClassifierDigit._is_model_defined:
             # placeholder definition
@@ -99,7 +101,7 @@ class CNNClassifierDigit(CNNClassifierImagesBase):
             CNNClassifierDigit._is_model_defined = True
 
         # run
-        self.get_sess().run(tf.global_variables_initializer())
+        self.sess.run(tf.global_variables_initializer())
 
     def _inference(self):
         # 1層 畳み込み層1
@@ -190,20 +192,22 @@ class CNNClassifierDigit(CNNClassifierImagesBase):
 
     def run_train(self):
         saver = tf.train.Saver()
-        ckpt = tf.train.get_checkpoint_state(self.get_ckpt_dir())
+        ckpt = tf.train.get_checkpoint_state(self.ckpt_dir)
         if ckpt:  # train_reuse
             last_model = ckpt.model_checkpoint_path  # 最後に保存したmodelへのパス
             logger.info('traindata load: ' + last_model)
-            saver.restore(self.get_sess(), last_model)  # 変数データの読み込み
+            saver.restore(self.sess, last_model)  # 変数データの読み込み
         else:     # train_on
             logger.info('train start')
 
             # train_data_read
             batch_size = 100
-            train_data_itr = self.read_iter_data_img(range(0, 10),
-                                                     functools.partial(CNNClassifierImagesBase.sample_image,
-                                                                       resize_x=28, resize_y=28, normalization=True),
-                                                     shuffle=True,
+            train_data_itr = self.read_iter_data_img(list(range(0, 10)),
+                                                     sampling_func=functools.partial(
+                                                         CNNClassifierTfBase.sample_image,
+                                                         resized_shape=(28, 28),
+                                                         normalization=True, flatten=True),
+                                                     shuffle_flg=True,
                                                      batch_size=batch_size)
 
             summary_str = None
@@ -218,51 +222,53 @@ class CNNClassifierDigit(CNNClassifierImagesBase):
                 labels = train_data[1]
                 train_data_size = len(imgs)
 
-                accuracy_str = self.get_models('accuracy').eval(session=self.get_sess(), feed_dict={
+                accuracy_str = self.get_models('accuracy').eval(session=self.sess, feed_dict={
                     self.get_placeholders('x'): imgs,
                     self.get_placeholders('y_'): labels,
                     self.get_placeholders('keep_prob'): 1.0})
-                self.get_sess().run(self.get_models('train'), feed_dict={
+                self.sess.run(self.get_models('train'), feed_dict={
                     self.get_placeholders('x'): imgs, self.get_placeholders('y_'): labels,
                     self.get_placeholders('keep_prob'): self._train_keep_prob})
-                if self.get_summary_writer() is not None and self.get_summary_op() is not None:
-                    summary_str = self.get_sess().run(self.get_summary_op(), feed_dict={
+                if self.summary_writer is not None and self.summary_op is not None:
+                    summary_str = self.sess.run(self.summary_op, feed_dict={
                         self.get_placeholders('x'): imgs, self.get_placeholders('y_'): labels,
                         self.get_placeholders('keep_prob'): self._train_keep_prob})
 
                 if i % 100 == 0:
-                    if self.get_summary_writer() is not None and self.get_summary_op() is not None:
-                        self.get_summary_writer().add_summary(summary_str, i)
-                        self.get_summary_writer().flush()
+                    if self.summary_writer is not None and self.summary_op is not None:
+                        self.summary_writer.add_summary(summary_str, i)
+                        self.summary_writer.flush()
 
                 i += train_data_size
-                logger.debug('train_times:%s accuracy:%g' % (i, accuracy_str))
+                logger.info('train_times:%s accuracy:%g' % (i, accuracy_str))
 
                 del train_data, imgs, labels
 
             # 学習パラメータの保存
-            saver.save(self.get_sess(), os.path.join(self.get_ckpt_dir(), 'CNN_Digit.ckpt'))
+            saver.save(self.sess, os.path.join(self.ckpt_dir, 'CNN_Digit.ckpt'))
 
         return self
 
     def classify(self, imgs, prediction_filtering=True, prediction_threshold=0.84):
 
-        if self.get_sess() is None:
+        if self.sess is None:
             logger.warning('called before prepare')
             return None
 
-        imgs = self.sample_image(imgs, resize_x=28, resize_y=28, normalization=True)
+        imgs = self.sample_image(imgs, resized_shape=(28, 28), normalization=True, flattening=True)
 
         chrs = ''
         prediction_list = []
-        for img in imgs:
-            feed_dict = {
-                self.get_placeholders('x'): img,
-                self.get_placeholders('y_'): [[0.0] * 10],
-                self.get_placeholders('keep_prob'): 1.0}
-            p = self.get_sess().run(self.get_models('y_conv'), feed_dict=feed_dict)[0]
-            guess_label = np.argmax(p)
-            prediction = self.get_models('prediction').eval(session=self.get_sess(), feed_dict=feed_dict)
+        # for img in imgs:
+        feed_dict = {
+            self.get_placeholders('x'): imgs,
+            self.get_placeholders('keep_prob'): 1.0}
+        result_predictions = self.sess.run(self.get_models('y_conv'), feed_dict=feed_dict)
+
+        for prediction in result_predictions:
+            guess_label = np.argmax(prediction)
+            prediction = np.max(prediction)
+            # prediction = self.get_models('prediction').eval(session=self.sess, feed_dict=feed_dict)
 
             logger.debug('guess_label:%s prediction:%g' % (guess_label, prediction))
             if prediction_filtering:

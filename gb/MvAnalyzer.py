@@ -9,10 +9,12 @@ import math
 import numpy as np
 import collections
 import logging
+import functools
 from PIL import Image
 
 from gmot.ml.KNeighborsClassifierScikitLearn import knn_classify
 from gmot.ml.CNNClassifierDigit import CNNClassifierDigit
+from gmot.ml.CNNClassifierStaticObject import CNNClassifierStaticObject
 
 KNN_IDENTIFIER_END_SCORE = 'end_score'
 KNN_IDENTIFIER_TOTAL_SCORE = 'total_score'
@@ -424,12 +426,7 @@ def discern_mode(imgs, id=None, imgs_output_dir=None):
         return False
 
     knn_stage_mode_results = []
-    break_images = []
-    for i, img in enumerate(imgs):
-        img = img[195:250, 40:280]      # Extract letter area　rectangular[y: y + h, x: x + w]
-        img = conv_gray_img(img)        # Convert to gray scale
-        img = adpt_thresh_img(img, 25)  # Adaptive thresholding
-        break_images.append(img)
+    break_images = sample_discern_mode(imgs)
 
     # DISCERN KNN
     stage_mode_raw = knn_classify(break_images, KNN_IDENTIFIER_MODE)
@@ -449,7 +446,63 @@ def discern_mode(imgs, id=None, imgs_output_dir=None):
     # When even one is determined the Break, set the Break
     stage_mode = 'b' if 'b' in stage_mode_raw else 'n'
 
-    return stage_mode 
+    return stage_mode
+
+
+def discern_mode_cnn(imgs, cnn: CNNClassifierStaticObject, id=None, imgs_output_dir=None):
+    if len(imgs) == 0:
+        logger.error('discernMode/arg_imgs contains no imgs')
+        return False
+
+    break_images = sample_discern_mode(imgs)
+    break_images = np.array(
+        cnn.sample_image(
+            break_images,
+            resized_shape=(cnn.input_x, cnn.input_y),
+            # normalization=True,
+            other_sample_func_list=[
+                functools.partial(
+                    cnn.convert_channels,
+                    mode=cv2.COLOR_GRAY2BGR),
+                cnn.normalize
+            ])
+    )
+
+    # DISCERN CNN
+    stage_mode_raw, predictions = cnn.classify(break_images)
+    if stage_mode_raw is None:
+        return None
+    # img_output on
+    logger.debug(stage_mode_raw)
+    # [Image.fromarray(np.uint8(break_image)).show() for break_image in break_images]
+    if id is not None and imgs_output_dir is not None:
+        for num, knn_digit in enumerate(stage_mode_raw):
+            cv2.imwrite(os.path.join(
+                imgs_output_dir, knn_digit,
+                'mode_%s_%s.png' % (knn_digit, id)
+            ),
+                break_images[num])
+
+    # When even one is determined the Break, set the Break
+    stage_mode = 'n'
+    for i in range(len(stage_mode_raw)):
+        if np.max(predictions[i]) < 0.95:
+            continue
+        elif stage_mode_raw[i] == 'b':
+            stage_mode = 'b'
+            break
+
+    return stage_mode, predictions
+
+
+def sample_discern_mode(imgs):
+    for i, img in enumerate(imgs):
+        img = img[195:250, 40:280]  # Extract letter area　rectangular[y: y + h, x: x + w]
+        img = conv_gray_img(img)  # Convert to gray scale
+        img = adpt_thresh_img(img, 25)  # Adaptive thresholding
+        imgs[i] = img
+
+    return imgs
 
 
 def conv_gray_img(img):

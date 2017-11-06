@@ -7,7 +7,6 @@ for lobi.play
 import sys
 import os
 import logging
-import syslog
 import time
 import pytz
 import datetime
@@ -25,7 +24,7 @@ from gmot.ml.KNeighborsClassifierScikitLearn import knn_train, knn_teardown_all
 from gmot.ml.CNNClassifierDigit import CNNClassifierDigit
 from gmot.gb.MvAnalyzer import extract_cap_end_score, extract_cap_total_score, extract_cap_mode,\
                              clip_caputure, ajust_capture, ocr_end_score_cnn, ocr_total_score_cnn, discern_mode,\
-                             KNN_IDENTIFIER_END_SCORE, KNN_IDENTIFIER_TOTAL_SCORE, KNN_IDENTIFIER_MODE
+                             KNN_IDENTIFIER_MODE
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +33,9 @@ logger = logging.getLogger(__name__)
 META_IDS_DIC = {'火有利1': '95809', '水有利1': '94192', '風有利1': '95126', '混合火1': '97548',
                         '闇有利1': '67204', '光有利1': '101765', '混合闇1': '97548',
                         '水有利2': '240911', '風有利2': '237788',
-                        '闇有利2': '240744', '光有利2': '240371'}
+                        '闇有利2': '240744', '光有利2': '240371', '火有利2': '95809'}
 DATETIME_RING_RECTANGLE = datetime.datetime(2017, 10, 23, tzinfo=pytz.timezone('Asia/Tokyo'))
+DATETIME_FIRE2_ADD = datetime.datetime(2017, 10, 31, tzinfo=pytz.timezone('Asia/Tokyo'))
 
 # directory path
 MOVIE_DIR = '../movie'
@@ -75,7 +75,7 @@ def main():
     if post_list.meta_ids_name not in META_IDS_DIC:
         logger.error('arguments error/meta_ids_name is invalid:%s' % META_IDS_DIC.keys())
         exit(1)
-    if not (0 < post_list.rows and post_list.rows <= 1000):
+    if not (0 < post_list.rows <= 1000):
         logger.error('arguments error/rows is invalid:range 1-1000')
         exit(1)
 
@@ -199,7 +199,8 @@ def edit_post_data(post_list, post_detail_list):
         session_maker = sessionmaker(bind=DbAccessor.engine)
         session = session_maker()
         gb_posts_result = (session.query(DbAccessor.GBPost.id)
-                           .filter(DbAccessor.GBPost.meta_ids_name == post_list.meta_ids_name).all())
+                           # .filter(DbAccessor.GBPost.meta_ids_name == post_list.meta_ids_name)
+                           .all())
         session.flush()
         session.commit()
 
@@ -223,6 +224,7 @@ def edit_post_data(post_list, post_detail_list):
     # タグに対して不適切な曜日に投稿されたpostを除外する
     # 1)混合火と混合闇は同一タグであるため、指定したmeta_ids_nameに適合しない曜日の場合、除外する
     # 2)新ステージ(2)は初期の頃(1)と同一タグだったため、指定したmeta_ids_nameが(1)であるのに適合しない曜日の場合、除外する
+    # 火有利2はどうしようねえ...
     old_meta_ids_holiday_stage2 = ['水有利1', '風有利1']
     old_meta_ids_workday_stage2 = ['闇有利1', '光有利1']
 
@@ -234,10 +236,10 @@ def edit_post_data(post_list, post_detail_list):
         workday = [0, 1, 2, 3, 4]
         holiday = [5, 6]
 
-        # 混合火1 but holiday
+        # mixed_fire1 but holiday
         if post_detail.meta_ids_name == '混合火1' and post_weekday in holiday:
             remove_count += 1
-        # 混合闇1 but workday
+        # mixed_dark1 but workday
         elif post_detail.meta_ids_name == '混合闇1' and post_weekday in workday:
             remove_count += 1
         # workday old stage but holiday
@@ -245,6 +247,9 @@ def edit_post_data(post_list, post_detail_list):
             remove_count += 1
         # holiday old stage but workday
         elif post_detail.meta_ids_name in old_meta_ids_workday_stage2 and post_weekday in workday:
+            remove_count += 1
+        # exclude fire2 posts whose post_datetime is before added date.
+        elif post_detail.meta_ids_name == '火有利2' and post_detail.post_datetime < DATETIME_FIRE2_ADD:
             remove_count += 1
         else:
             # when error, remove by not adding
@@ -302,7 +307,7 @@ def get_mv_url(post_detail_list):
                 mv_url = ('https://d29yz6f144inkz.cloudfront.net/%s/%s/%s/%s/%s/video/mp4_hq.mp4'
                           % (id_dir[0], id_dir[1], id_dir[2], id_dir[3], post_detail.id))
                 lobi_name = ''
-                logger.info('%s:getMvUrl:GUESS_MV_URL_FALSE/Run GUESS_MODE'
+                logger.info('%s:getMvUrl:GUESS_MV_URL_FALSE/Run GUESS_MODE '
                             'because this movie is deleted or LobiUser is not linked:%s:%s'
                             % (e, i, post_detail.post_url))
 
@@ -340,16 +345,11 @@ def analyze_mv_file(post_detail_list):
 
     # CNN prepare
     es_cnn = CNNClassifierDigit()
-    es_cnn.set_train_data_dir(TRAIN_DATA_DIR_END_SCORE_CNN)
-    es_cnn.set_ckpt_dir(CKPT_DATA_DIR_END_SCORE_CNN)
-    es_cnn.prepare()
-    es_cnn.run_train()
-
+    es_cnn.ckpt_dir = CKPT_DATA_DIR_END_SCORE_CNN
+    es_cnn.prepare_classify()
     ts_cnn = CNNClassifierDigit()
-    ts_cnn.set_train_data_dir(TRAIN_DATA_DIR_TOTAL_SCORE_CNN)
-    ts_cnn.set_ckpt_dir(CKPT_DATA_DIR_TOTAL_SCORE_CNN)
-    ts_cnn.prepare()
-    ts_cnn.run_train()
+    ts_cnn.ckpt_dir = CKPT_DATA_DIR_TOTAL_SCORE_CNN
+    ts_cnn.prepare_classify()
 
     remove_post_details = []
     for i, post_detail in enumerate(post_detail_list):
@@ -465,17 +465,16 @@ def insert_posts(post_detail_list):
             post.final_score,           # final_score
             post.end_score,             # end_score
             post.end_score_raw,         # end_score_raw
-            post.end_score_knn,         # end_score_cnn
-            post.end_score_knn_raw,     # end_score_cnn_raw
             post.total_score,           # total_score
             post.total_score_raw,       # total_score_raw
             post.stage_mode,            # stage_mode
             post.post_datetime,         # post_datetime           
             post.duration,              # duration
             post.ring,                  # ring
-            post.media,                 # media        
+            post.media,                 # media
             '0',                        # is_final_score_editted
-            post.is_valid_data          # is_valid_data
+            post.is_valid_data,         # is_valid_data
+            None                        # stage_mode_re
         ) 
         posts.append(gb_post)
 
