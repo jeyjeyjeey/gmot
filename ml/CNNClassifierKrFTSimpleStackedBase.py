@@ -51,8 +51,8 @@ class CNNClassifierKrFTSimpleStackedBase(ClassifierImageLoaderBase):
 
     def classify(self, imgs):
         """
-        :param imgs: type=numpy.ndarray, shape=(?,244,244,3) / ? is batch size
-        :return: type=numpy.ndarray, shape=(?,2)
+        :param imgs: type=numpy.ndarray, shape=(batch_size, x, y, channels)
+        :return: type=numpy.ndarray, shape=(batch_size, classes)
         """
         return self._decode_predictions(self._get_model_full().predict_on_batch(imgs))
 

@@ -14,7 +14,8 @@ from PIL import Image
 
 from gmot.ml.KNeighborsClassifierScikitLearn import knn_classify
 from gmot.ml.CNNClassifierDigit import CNNClassifierDigit
-from gmot.ml.CNNClassifierStaticObject import CNNClassifierStaticObject
+# from gmot.ml.CNNClassifierStaticObject import CNNClassifierStaticObject
+from gmot.ml.RandomForestClassifierImage import RandomForestClassifierImage
 
 KNN_IDENTIFIER_END_SCORE = 'end_score'
 KNN_IDENTIFIER_TOTAL_SCORE = 'total_score'
@@ -73,7 +74,7 @@ def extract_cap_total_score(mv):
     return proc_imgs if ret is True else None
 
 
-def extract_cap_mode(mv):
+def extract_cap_mode(mv, frame_rate=2):
 
     fps = mv.get(cv2.CAP_PROP_FPS)
     cnt_frame = mv.get(cv2.CAP_PROP_FRAME_COUNT)
@@ -96,7 +97,7 @@ def extract_cap_mode(mv):
         elif ret is False:
             break
 
-        pos_frame -= fps / 2
+        pos_frame -= fps / frame_rate
         i += 1
 
     return proc_imgs if ret is True else None
@@ -449,7 +450,43 @@ def discern_mode(imgs, id=None, imgs_output_dir=None):
     return stage_mode
 
 
-def discern_mode_cnn(imgs, cnn: CNNClassifierStaticObject, id=None, imgs_output_dir=None):
+def discern_mode_rf(imgs, clf: RandomForestClassifierImage, id=None, imgs_output_dir=None):
+    if len(imgs) == 0:
+        logger.error('discernMode/arg_imgs contains no imgs')
+        return False
+
+    break_images = sample_discern_mode(imgs)
+    break_images = clf.sample_image(
+                    break_images,
+                    normalization=True,
+                    flattening=True)
+
+    # DISCERN KNN
+    stage_mode_raw = clf.classify(break_images)
+    if stage_mode_raw is None:
+        return None
+    # img_output on
+    logger.debug(stage_mode_raw)
+    # [Image.fromarray(np.uint8(break_image)).show() for break_image in break_images]
+    if id is not None and imgs_output_dir is not None:
+        for num, knn_digit in enumerate(stage_mode_raw):
+            cv2.imwrite(os.path.join(
+                imgs_output_dir, knn_digit,
+                'mode_%s_%s.png' % (knn_digit, id)
+            ),
+                break_images[num])
+
+    # When even one is determined the Break, set the Break
+    stage_mode = 'n'
+    if len(np.where(stage_mode_raw == 'b')[0]):
+        indices_b = np.argwhere(stage_mode_raw == 'b')
+        if (indices_b.max() - indices_b.min()) == (indices_b.size - 1):
+            stage_mode = 'b'
+
+    return stage_mode
+
+
+def discern_mode_cnn(imgs, cnn, id=None, imgs_output_dir=None):
     if len(imgs) == 0:
         logger.error('discernMode/arg_imgs contains no imgs')
         return False

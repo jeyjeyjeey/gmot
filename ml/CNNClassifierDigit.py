@@ -38,7 +38,8 @@ def main():
                                                    sampling_func=functools.partial(
                                                        CNNClassifierTfBase.sample_image,
                                                        resized_shape=(28, 28),
-                                                       normalization=True, flattening=True),
+                                                       normalization=True,
+                                                       flattening=True),
                                                    shuffle_flg=True,
                                                    batch_size=100)
             test_data = next(test_data_itr)

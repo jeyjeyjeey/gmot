@@ -12,9 +12,8 @@ import cv2
 from sqlalchemy.orm import sessionmaker
 
 import gmot.data.DbAccessor as DbAccessor
-from gmot.ml.KNeighborsClassifierScikitLearn import knn_train
-from gmot.gb.MvAnalyzer import extract_cap_mode, ajust_capture, discern_mode, clip_caputure,\
-    KNN_IDENTIFIER_MODE
+from gmot.gb.MvAnalyzer import extract_cap_mode, ajust_capture, discern_mode_cnn, clip_caputure
+from gmot.ml.CNNClassifierStaticObject import CNNClassifierStaticObject
 
 
 MOVIE_DIR = '../movie'
@@ -29,12 +28,8 @@ def main():
 
     gb_posts_dict_list = get_target_data()
 
-    # total_score[0-9]識別用のknnオブジェクトを生成
-    detect_chrs = ['b', 'n']
-    knn_train(detect_chrs, TRAIN_DATA_DIR_MODE, KNN_IDENTIFIER_MODE, 3)
-
     gb_posts_dict_list = analyze_mv_file(gb_posts_dict_list)
-    update_record_with_user_id(gb_posts_dict_list)
+    # update_record_with_user_id(gb_posts_dict_list)
 
 
 def get_target_data():
@@ -47,9 +42,10 @@ def get_target_data():
                                      DbAccessor.GBPost.stage_mode
                                      )
                        # .filter(DbAccessor.GBPost.id == 'ff01fd2d547d739e6b4992ce3432a6a73e74f57e')
-                       .filter(DbAccessor.GBPost.updated_at < '2017-10-17 09:00:00')
-                       # .limit(7500)
-                       .all()
+                       # .filter(DbAccessor.GBPost.updated_at < '2017-10-17 09:00:00')
+                       .filter(DbAccessor.GBPost.stage_mode_re == None)
+                       .limit(1000)
+                       # .all()
                        )
     session.flush()
     session.commit()
@@ -66,6 +62,12 @@ def get_target_data():
 def analyze_mv_file(gb_posts_dict_list):
     
     logging.info('analyzeMvFile/対象件数：' + str(len(gb_posts_dict_list)))
+
+    md_cnn = CNNClassifierStaticObject()
+    md_cnn.weight_dir = '../weight'
+    md_cnn.identifier = 'mode'
+    md_cnn.classes = ['b', 'n']
+    md_cnn.prepare_classify()
 
     gb_posts_dict_list_commit = []
     for i, gb_posts_dict in enumerate(gb_posts_dict_list):
@@ -85,7 +87,8 @@ def analyze_mv_file(gb_posts_dict_list):
             continue
         proc_imgs = clip_caputure(proc_imgs)
         proc_imgs = ajust_capture(proc_imgs)
-        stage_mode = discern_mode(proc_imgs)
+        stage_mode, predictions = discern_mode_cnn(proc_imgs, md_cnn)
+        logging.debug(predictions)
 
         # dataCleanse
         # stage_mode
@@ -100,7 +103,7 @@ def analyze_mv_file(gb_posts_dict_list):
         logging.info(gb_posts_dict)
         logging.info('analyzeMvFile/処理完了：' + str(i))
 
-        if i % 100 == 0:
+        if i % 30 == 0:
             update_record_with_user_id(gb_posts_dict_list_commit)
             gb_posts_dict_list_commit = []
 

@@ -48,8 +48,7 @@ class GBPost(Base):
 
     def __init__(self,
                  created_at, updated_at, id, post_date, meta_ids_name, author, lobi_name, user_id,
-                 final_score, end_score, end_score_raw, end_score_knn, end_score_knn_raw,
-                 total_score, total_score_raw, stage_mode,
+                 final_score, end_score, end_score_raw, total_score, total_score_raw, stage_mode,
                  post_datetime, duration, ring, media, is_score_editted, is_valid_data, stage_mode_re):
         self.created_at = created_at
         self.updated_at = updated_at

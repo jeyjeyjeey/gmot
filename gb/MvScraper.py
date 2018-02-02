@@ -34,27 +34,26 @@ META_IDS_DIC = {'火有利1': '95809', '水有利1': '94192', '風有利1': '951
                         '闇有利1': '67204', '光有利1': '101765', '混合闇1': '97548',
                         '水有利2': '240911', '風有利2': '237788',
                         '闇有利2': '240744', '光有利2': '240371', '火有利2': '95809'}
-DATETIME_RING_RECTANGLE = datetime.datetime(2017, 10, 23, tzinfo=pytz.timezone('Asia/Tokyo'))
 DATETIME_FIRE2_ADD = datetime.datetime(2017, 10, 31, tzinfo=pytz.timezone('Asia/Tokyo'))
-
-# directory path
-MOVIE_DIR = '../movie'
-CAPTURE_DIR = '../capture'
-TRAIN_DATA_DIR_END_SCORE = '../traindata/end_score_knn'
-TRAIN_DATA_DIR_TOTAL_SCORE = '../traindata/total_score_knn'
-TRAIN_DATA_DIR_MODE = '../traindata/mode'
-TRAIN_DATA_DIR_END_SCORE_CNN = '../traindata/end_score_cnn'
-CKPT_DATA_DIR_END_SCORE_CNN = '../ckpt/end_score'
-TRAIN_DATA_DIR_TOTAL_SCORE_CNN = '../traindata/total_score_cnn'
-CKPT_DATA_DIR_TOTAL_SCORE_CNN = '../ckpt/total_score'
 
 # optional settings
 GUESS_MV_URL = False  # when true, cannot get lobi_name
 CHECK_POST_DATA_EXIST = True
 DATA_INSERT = True
 
+# default dir
+MOVIE_DIR = '../movie'
+CAPTURE_DIR = '../capture'
+
 
 def main():
+    # directory path
+    TRAIN_DATA_DIR_MODE = '../traindata/mode'
+    TRAIN_DATA_DIR_END_SCORE_CNN = '../traindata/end_score_cnn'
+    CKPT_DATA_DIR_END_SCORE_CNN = '../ckpt/end_score'
+    TRAIN_DATA_DIR_TOTAL_SCORE_CNN = '../traindata/total_score_cnn'
+    CKPT_DATA_DIR_TOTAL_SCORE_CNN = '../ckpt/total_score'
+
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(message)s',
                         datefmt='%Y/%m/%d %I:%M:%S'
@@ -108,7 +107,15 @@ def main():
     knn_train(detect_chrs, TRAIN_DATA_DIR_MODE, KNN_IDENTIFIER_MODE, 3)
 
     # Movie analyze
-    post_detail_list = analyze_mv_file(post_detail_list)
+    # CNN prepare
+    es_cnn = CNNClassifierDigit()
+    es_cnn.ckpt_dir = CKPT_DATA_DIR_END_SCORE_CNN
+    es_cnn.prepare_classify()
+    ts_cnn = CNNClassifierDigit()
+    ts_cnn.ckpt_dir = CKPT_DATA_DIR_TOTAL_SCORE_CNN
+    ts_cnn.prepare_classify()
+
+    post_detail_list = analyze_mv_file(post_detail_list, es_cnn, ts_cnn)
     knn_teardown_all()
 
     # Data persistence
@@ -178,10 +185,7 @@ def get_posts_detail(post_list):
         post_detail.mv_name = post_detail.id + '.mp4'
         post_detail.mv_path = os.path.join(MOVIE_DIR, post_detail.mv_name)
         post_detail.media = 'L'
-        if post_detail.post_datetime < DATETIME_RING_RECTANGLE:
-            post_detail.ring = 'C'  # circle
-        elif post_detail.post_datetime >= DATETIME_RING_RECTANGLE:
-            post_detail.ring = 'R'  # Rectungle
+        post_detail.ring = 'C'  # circle
 
         _post_detail_list.append(post_detail)
 
@@ -341,15 +345,7 @@ def download_mv_file(post_detail_list):
     return post_detail_list
 
 
-def analyze_mv_file(post_detail_list):
-
-    # CNN prepare
-    es_cnn = CNNClassifierDigit()
-    es_cnn.ckpt_dir = CKPT_DATA_DIR_END_SCORE_CNN
-    es_cnn.prepare_classify()
-    ts_cnn = CNNClassifierDigit()
-    ts_cnn.ckpt_dir = CKPT_DATA_DIR_TOTAL_SCORE_CNN
-    ts_cnn.prepare_classify()
+def analyze_mv_file(post_detail_list, es_cnn, ts_cnn):
 
     remove_post_details = []
     for i, post_detail in enumerate(post_detail_list):

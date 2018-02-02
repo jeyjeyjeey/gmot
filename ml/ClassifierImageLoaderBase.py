@@ -57,7 +57,7 @@ class ClassifierImageLoaderBase:
             samples = sampling_func(samples)
         samples = np.array(samples)
         labels = np.array(labels)
-        if one_hot:  # one-hot変換
+        if one_hot:  # convert to one-hot
             labels = np.eye(len(detect_characters))[[list(map(str, detect_characters)).index(l) for l in labels]]
 
         if shuffle_flg:
@@ -111,8 +111,11 @@ class ClassifierImageLoaderBase:
                 samples = sampling_func(samples)
             samples = np.array(samples)
             labels = np.array(labels)
-            if one_hot:  # one-hot変換
+            if one_hot:  # convert to one-hot
                 labels = np.eye(len(detect_characters))[[list(map(str, detect_characters)).index(l) for l in labels]]
+                # Using fancy index reference.
+                # Specify a list(dtype:Integer) in the indices of ndarray,
+                # then it returns ndarray that contains elements of specified indices.
 
             data = [samples, labels]
             current_index += batch_size
@@ -131,9 +134,9 @@ class ClassifierImageLoaderBase:
 
         img_procs = []
         if trimmed_shape is not None:
-            img_procs.append(functools.partial(ClassifierImageLoaderBase.trim, trimmed_shape))
+            img_procs.append(functools.partial(ClassifierImageLoaderBase.trim, trimmed_shape=trimmed_shape))
         if resized_shape is not None:
-            img_procs.append(functools.partial(ClassifierImageLoaderBase.resize, resized_shape))
+            img_procs.append(functools.partial(ClassifierImageLoaderBase.resize, resized_shape=resized_shape))
         if normalization:
             img_procs.append(ClassifierImageLoaderBase.normalize)
         if flattening:
