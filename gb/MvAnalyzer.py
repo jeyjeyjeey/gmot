@@ -12,10 +12,9 @@ import logging
 import functools
 from PIL import Image
 
-from gmot.ml.KNeighborsClassifierScikitLearn import knn_classify
-from gmot.ml.CNNClassifierDigit import CNNClassifierDigit
-# from gmot.ml.CNNClassifierStaticObject import CNNClassifierStaticObject
-from gmot.ml.RandomForestClassifierImage import RandomForestClassifierImage
+from mlsp.ml.KNeighborsClassifierScikitLearn import knn_classify
+from mlsp.ml.CNNClassifierDigit import CNNClassifierDigit
+from mlsp.ml.RandomForestClassifierImage import RandomForestClassifierImage
 
 KNN_IDENTIFIER_END_SCORE = 'end_score'
 KNN_IDENTIFIER_TOTAL_SCORE = 'total_score'
@@ -347,7 +346,7 @@ def ocr_total_score_cnn(imgs, cnn: CNNClassifierDigit, id=None, imgs_output_dir=
     total_results_score = []
     total_results_prediction = []
     total_score_raw_all = []
-    for i, img in enumerate(imgs):
+    for img in imgs:
         digit_imgs = sample_total_score(img)
 
         # OCR CNN

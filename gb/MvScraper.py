@@ -19,9 +19,9 @@ import cv2
 from sqlalchemy.orm import sessionmaker
 
 from gmot.data.DataModel import PostList, PostDetailGuild
-import gmot.data.DbAccessor as DbAccessor
-from gmot.ml.KNeighborsClassifierScikitLearn import knn_train, knn_teardown_all
-from gmot.ml.CNNClassifierDigit import CNNClassifierDigit
+from gmot.data.DbAccessor import DBAccessor, GBPost
+from mlsp.ml.KNeighborsClassifierScikitLearn import knn_train, knn_teardown_all
+from mlsp.ml.CNNClassifierDigit import CNNClassifierDigit
 from gmot.gb.MvAnalyzer import extract_cap_end_score, extract_cap_total_score, extract_cap_mode,\
                              clip_caputure, ajust_capture, ocr_end_score_cnn, ocr_total_score_cnn, discern_mode,\
                              KNN_IDENTIFIER_MODE
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 META_IDS_DIC = {'火有利1': '95809', '水有利1': '94192', '風有利1': '95126', '混合火1': '97548',
                         '闇有利1': '67204', '光有利1': '101765', '混合闇1': '97548',
                         '水有利2': '240911', '風有利2': '237788',
-                        '闇有利2': '240744', '光有利2': '240371', '火有利2': '95809'}
+                        '闇有利2': '240744', '光有利2': '240371', '火有利2': '270488'}
 DATETIME_FIRE2_ADD = datetime.datetime(2017, 10, 31, tzinfo=pytz.timezone('Asia/Tokyo'))
 
 # optional settings
@@ -78,12 +78,16 @@ def main():
         logger.error('arguments error/rows is invalid:range 1-1000')
         exit(1)
 
+    # prepare db
+    db = DBAccessor()
+    db.prepare_connect()
+
     # Scraping
     post_list = get_posts_list(post_list)
     if post_list is None:
         exit(1)
     post_detail_list = get_posts_detail(post_list)
-    post_detail_list = edit_post_data(post_list, post_detail_list)
+    post_detail_list = edit_post_data(post_list, post_detail_list, db)
     post_detail_list = get_mv_url(post_detail_list)
     if post_detail_list is None:
         exit(1)
@@ -121,7 +125,7 @@ def main():
     # Data persistence
     post_detail_list = data_cleanse(post_detail_list)
     if DATA_INSERT:
-        insert_posts(post_detail_list)
+        insert_posts(post_detail_list, db)
 
     exit(0)
 
@@ -194,15 +198,15 @@ def get_posts_detail(post_list):
     return _post_detail_list
 
 
-def edit_post_data(post_list, post_detail_list):
+def edit_post_data(post_list, post_detail_list, db):
 
     # 1.Data Existence Check
     # テーブルにすでに同一idのレコードが存在した場合、解析済みとして以降の操作対象外とする
     if CHECK_POST_DATA_EXIST:
 
-        session_maker = sessionmaker(bind=DbAccessor.engine)
+        session_maker = sessionmaker(bind=db.engine)
         session = session_maker()
-        gb_posts_result = (session.query(DbAccessor.GBPost.id)
+        gb_posts_result = (session.query(GBPost.id)
                            # .filter(DbAccessor.GBPost.meta_ids_name == post_list.meta_ids_name)
                            .all())
         session.flush()
@@ -441,15 +445,15 @@ def data_cleanse(post_detail_list):
     return post_detail_list
 
 
-def insert_posts(post_detail_list):
-    session_maker = sessionmaker(bind=DbAccessor.engine)
+def insert_posts(post_detail_list, db):
+    session_maker = sessionmaker(bind=db.engine)
     session = session_maker()
     now = datetime.datetime.now()
 
     posts = []
     for post in post_detail_list:
 
-        gb_post = DbAccessor.GBPost(
+        gb_post = GBPost(
             now,                        # created                 
             '0000-00-00 00:00:00',      # modified                
             post.id,                    # id                      
@@ -468,7 +472,7 @@ def insert_posts(post_detail_list):
             post.duration,              # duration
             post.ring,                  # ring
             post.media,                 # media
-            '0',                        # is_final_score_editted
+            '0',                        # is_final_score_edited
             post.is_valid_data,         # is_valid_data
             None                        # stage_mode_re
         ) 

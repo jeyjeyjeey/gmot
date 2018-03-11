@@ -18,16 +18,22 @@ import syslog
 from sqlalchemy.orm import sessionmaker
 
 from gmot.data.DataModel import PostList, PostDetail
-import gmot.data.DbAccessor as DbAccessor
+from gmot.data.DbAccessor import DbAccessor
+
 
 def main():
-    gb_posts_dict_list = getTargetData()
+    # prepare db
+    db = DBAccessor()
+    db.prepare_connect()
+
+    gb_posts_dict_list = getTargetData(db)
     gb_posts_dict_list = getLobiNameList(gb_posts_dict_list)
     updateRecordWithLobiName(gb_posts_dict_list)
 
-def getTargetData():
+
+def getTargetData(db):
     # 既存データ取得
-    Session = sessionmaker(bind=DbAccessor.engine)
+    Session = sessionmaker(bind=db.engine)
     session = Session()
     gb_posts_result = ( session.query(DbAccessor.GBPost.id, DbAccessor.GBPost.lobi_name)
                         .limit(8000)
@@ -42,6 +48,7 @@ def getTargetData():
         if gb_post_dict.get('lobi_name') == None:
             gb_posts_dict_list.append(gb_post_dict)
     return gb_posts_dict_list
+
 
 def getLobiNameList(gb_posts_dict_list):
     # リクエストURL: https://play.lobi.co/video/(id)
@@ -84,7 +91,7 @@ def getLobiNameList(gb_posts_dict_list):
 def updateRecordWithLobiName(gbPosts_dictList):
 
     # 既存データ取得
-    Session = sessionmaker(bind=DbAccessor.engine)
+    Session = sessionmaker(bind=db.engine)
     session = Session()
 
     # Mapping生成

@@ -12,7 +12,7 @@ import cv2
 import syslog
 from sqlalchemy.orm import sessionmaker
 
-import gmot.data.DbAccessor as DbAccessor
+from gmot.data.DbAccessor import DBAccessor, GBPost
 from gmot.ml.CNNClassifierDigit import CNNClassifierDigit
 from gmot.gb.MvAnalyzer import extract_cap_total_score, ajust_capture, \
     ocr_total_score, ocr_total_score_cnn, extract_cap_end_score, ocr_end_score, ocr_end_score_cnn,\
@@ -23,21 +23,24 @@ MOVIE_DIR = '../movie'
 
 
 def main():
+    # prepare db
+    db = DBAccessor()
+    db.prepare_connect()
 
-    gb_posts_dict_list = get_target_data()
+    gb_posts_dict_list = get_target_data(db)
 
     gb_posts_dict_list = analyze_mv_file(gb_posts_dict_list)
     # update_record_with_user_id(gb_posts_dict_list)
 
 
-def get_target_data():
+def get_target_data(db):
     # 既存データ取得
-    Session = sessionmaker(bind=DbAccessor.engine)
+    Session = sessionmaker(bind=db.engine)
     session = Session()
-    gb_posts_result = (session.query(DbAccessor.GBPost.id,
-                                     DbAccessor.GBPost.is_valid_data
+    gb_posts_result = (session.query(GBPost.id,
+                                     GBPost.is_valid_data
                                      )
-                       .filter(DbAccessor.GBPost.id == '001633cf53753fa240eda995ad5fe9bb9810b8d5')
+                       .filter(GBPost.id == '001633cf53753fa240eda995ad5fe9bb9810b8d5')
                        .limit(5)
                        # .offset(7000)
                        # .all()
@@ -123,10 +126,10 @@ def search_band_border(img, y, dir_func):
     return y
 
 
-def update_record_with_user_id(gb_posts_dict_list):
+def update_record_with_user_id(gb_posts_dict_list, db):
 
     # 既存データ取得
-    Session = sessionmaker(bind=DbAccessor.engine)
+    Session = sessionmaker(bind=db.engine)
     session = Session()
 
     # Mapping生成
@@ -136,7 +139,7 @@ def update_record_with_user_id(gb_posts_dict_list):
     # }, ...]
     gb_post_mappings = gb_posts_dict_list
 
-    session.bulk_update_mappings(DbAccessor.GBPost, gb_post_mappings)
+    session.bulk_update_mappings(GBPost, gb_post_mappings)
     session.flush()
 
     try:
