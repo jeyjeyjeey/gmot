@@ -197,7 +197,7 @@ def ajust_capture(imgs):
         # Trim a rectangular part passing through two points
         # img[y: y + h, x: x + w]
         for i, img in enumerate(imgs):
-            imgs[i] = img[0:height, x1:x2]
+            imgs[i] = img[0:height, x1:x2] if x1 >= 0 else img[0:height, 0:x2]  # mod fine difference from gmot_aspect
 
     if not (height == height_gmot and width == width_gmot):
         for j, img in enumerate(imgs):
