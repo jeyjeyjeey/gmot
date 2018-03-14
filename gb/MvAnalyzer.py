@@ -372,7 +372,8 @@ def ocr_total_score_cnn(imgs, cnn: CNNClassifierDigit, id=None, imgs_output_dir=
                     end_score_raw_filtering += total_score_raw_digit
 
         if (end_score_raw_filtering.count('_') == 0 or
-           (end_score_raw_filtering.count('_') == 1 and end_score_raw_filtering[0] == '_')):
+           (end_score_raw_filtering.count('_') == 1 and end_score_raw_filtering[0] == '_') or
+           (np.mean(prediction_list) > 0.9)):
             total_results_score.append(end_score_raw_filtering)
             total_results_prediction.append(prediction_list)
             # img_output on
