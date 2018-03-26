@@ -98,7 +98,7 @@ class GBTweet(Base):
     meta_ids_name       = Column('meta_ids_name', String(10), primary_key=True)
     stage_mode          = Column('stage_mode', String(1), primary_key=True)
     screen_name         = Column('screen_name', String(100))
-    tweet_id            = Column('id', String(100))
+    id                  = Column('id', String(100), primary_key=True)
     post_date           = Column('post_date', String(10))
     hash_tags           = Column('hash_tags', String(200))
     final_score         = Column('final_score', Integer)
@@ -120,7 +120,7 @@ class GBTweet(Base):
         self.meta_ids_name = meta_ids_name
         self.stage_mode = stage_mode
         self.screen_name = screen_name
-        self.tweet_id = tweet_id
+        self.id = tweet_id
         self.post_date = post_date
         self.hash_tags = hash_tags
         self.final_score = final_score
